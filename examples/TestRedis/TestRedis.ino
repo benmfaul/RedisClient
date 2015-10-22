@@ -89,15 +89,51 @@ void loop() {
   redis->connect();
   Serial.println("Connected, now we will test!");
 
-  redis->SUBSCRIBE("xxx",buffer,32);
+  redis->DEL("hash");
+  redis->HSET("hash","apples","10");
+  long rc = redis->HEXISTS("hash","apples");
+  if (rc != 1) {
+    Serial.println("HEXISTS ON GOOD KEY FAILED");
+    while(1);
+  }
   
-  redis->DEL("test");
+  rc = redis->HEXISTS("hash","bananas");
+  if (rc != 0) {
+    Serial.println("HEXISTS ON NON EXISTENT KEY FAILED");
+    while(1);
+  }
+  Serial.println("HEXISTS PASSED"); 
 
+  redis->HDEL("hash","bananas");
+  rc = redis->HEXISTS("hash","bananas");
+  if (rc != 0) {
+    Serial.println("HDEL ON NON EXISTENT KEY FAILED!");
+    while(1);
+  }
+  Serial.println("HDEL NON EXISTENT PASSED"); 
+  
+  rc = redis->HGET("hash","zzzz",buffer,32);
+  if (rc != -1) {
+    Serial.println("HASH GET ON INVALID KEY Failed");
+    while(1);
+  }
+  Serial.println("HGET INVALID KEY PASSED!");
+
+  rc = redis->HGET("hash","apples",buffer,32);
+  if (rc != 2 || strcmp(buffer,"10") != 0) {
+    Serial.println("HASH GET ON VALID KEY Failed");
+    while(1);
+  }
+  Serial.println("HGET VALID KEY PASSED!");
+
+
+  redis->DEL("test");
   long time=millis();
   long i = redis->INCR("test");
   time = millis() - time;
   if (i != 1) {
     Serial.println("INCR FAILED");
+    Serial.print("I = "); Serial.println(i);
     while(1);
   }
   Serial.print("Time (ms) to increment = "); Serial.println(time);
@@ -109,7 +145,7 @@ void loop() {
   redis->GET("junk",buffer,32);
   if (strcmp(buffer,"hello bye") != 0) {
     Serial.println("GET/SET FAILED");
-    while(1);;
+    while(1);
   }
 
   redis->DEL("list");

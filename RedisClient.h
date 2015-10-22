@@ -36,9 +36,9 @@ private:
     uint16_t resultBulk(char *buffer, uint16_t buffer_size);
 
 
-    uint16_t readEncodedLine(char *buffer, uint16_t buffer_size);   // read an encoded line '$n\r\nthe-string\r\n'
-    char cmdBuf[2048];                                        // the internal command buffer
-    int isConnected = 0;                                      // are we connected to REDIS
+    long readEncodedLine(char *buffer, long buffer_size);       // read an encoded line '$n\r\nthe-string\r\n'
+    char cmdBuf[2048];                                          // the internal command buffer
+    int isConnected = 0;                                        // are we connected to REDIS
 
 public:
 
@@ -75,20 +75,21 @@ public:
     long PUBLISH(char* channel, char* buf);                       // publish buf on channel
     long SUBSCRIBE(char* channel, char* buf, long sz);
 
-    long HGET(char* key, char* field, char* buffer);              // get hash value from key at field.                 
+    long HGET(char* key, char* field, char* buffer, long sz);     // get hash value from key at field.                 
     long HSET(char* key, char* field, char* value);               // set a hash value in hash key, at field
-    long HEXISTS(char* key, char* field);                         // does hash field exist in hash set? Returns 1 if it does, else 0                                        
+    long HEXISTS(char* key, char* field);                         // does hash field exist in hash set? Returns 1 on exists, or 0                                     
     long HDEL(char* key, char* field);                            // delete a hash field from the hash named at key
-    long LINDEX(char *key);                                       // how many members are in the list named at key
     
     // commands needing arguments using adddArg(...) and ending using end*
-    long APPEND(char* list, char* buf);
-    long LPOP(char* list, char* buf);
-    long LSET(char* list, char* buf, long index);
-    uint8_t startRPUSH(char* list, int length);                   // needs two arguments
-    long startLPUSH(char* list, int length);
+    long APPEND(char* list, char* buf);				  // Append a value to the end of the list
+    long LPOP(char* list, char* buf);     	 		  // Pop a value off the list.
+    long LSET(char* list, char* buf, long index);		  // Set the list at index to the value in buf.
+    void startRPUSH(char* list, int length);                      // Starts the RPUSH, provide name of list and number of things you will push, end with endPUSH();
+              							  // ... push the RPUSH items using addArg(char*), addLongArg(long) and addFloatArg(float).
+    void startLPUSH(char* list, int length);			  // Starts the LPUSH, privide name of list and number of things you will oush, end with endPUSH();
+              							  // ... push the LPUSH items using addArg(char*), addLongArg(long) anf addFloatArg(float).
 
-    long endPUSH();
+    long endPUSH();                                               // Completes the startLPUSH() and startRPUSH() methods.
   
     void sendArgRFMData(uint8_t header, uint8_t *data, uint8_t data_len); // format RFM12B packet
 };

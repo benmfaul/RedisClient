@@ -291,14 +291,22 @@ long RedisClient::GET(char* key, char *buffer, int buflen) {
 // list - the name of the list
 // len - the number of items that will be pushed on the list
 
-uint8_t RedisClient::startRPUSH(char* list, int len) {
+void RedisClient::startRPUSH(char* list, int len) {
     connect();
     int k = 2 + len;
 
     startCmd(k);
     addArg("RPUSH");
     addArg(list);
- 
+}
+
+void RedisClient::startLPUSH(char* list, int len) {
+    connect();
+    int k = 2 + len;
+
+    startCmd(k);
+    addArg("LPUSH");
+    addArg(list);
 }
 
 // Add a 4 byte long to the command argument list.
@@ -430,6 +438,8 @@ long RedisClient::TIME(char** values) {
     return howMany;
 }
 
+// TRIM values of list from start to stop
+
 long RedisClient::LTRIM(char* list, long start, long stop) {
     connect();
 
@@ -444,19 +454,38 @@ long RedisClient::LTRIM(char* list, long start, long stop) {
    return resultType() == RedisResult_SINGLELINE;
 }
 
-long RedisClient::HGET(char* key, char* field, char* buffer) {
+// HGET from hash at field, copy into buffer. Returns -1 if key doesn't exist else returns size of buffer
+
+long RedisClient::HGET(char* key, char* field, char* buffer, long sz) {
     connect();
 
-    startCmd(4);
+    startCmd(3);
     addArg("HGET");
     addArg(key);
     addArg(field);
-    addArg(buffer);
 
     _client.write(cmdBuf,strlen(cmdBuf));
 
-    return resultInt();
+    long rc = resultType();
+    if (rc == RedisResult_BULK) {
+	rc = readInt();
+	if (rc < 0)
+        	return rc;
+    } 
+    int k = 0;
+    while(k < rc) {
+	if (_client.available()) {
+		buffer[k++] = _client.read();
+	}
+    }
+    buffer[k] = 0;
+    while(_client.available())
+	_client.read();
+    return rc;
 }
+
+// HSET key at field with value.
+
 long RedisClient::HSET(char* key, char* field, char* value) {
     connect();
 
@@ -471,6 +500,9 @@ long RedisClient::HSET(char* key, char* field, char* value) {
     return resultInt();
 }
 
+// Does field exist in key. Returns 1 if it does, otherwise returns 0 if neither the hash or the field in
+// hash does not exist.
+
 long RedisClient::HEXISTS(char* key, char* field) {
     connect();
 
@@ -484,6 +516,8 @@ long RedisClient::HEXISTS(char* key, char* field) {
     return resultInt();
 }
 
+// Delete a field in the hash key. Returns 1 if it was deleted, returns 0 if either the key or the field dont exist.
+
 long RedisClient::HDEL(char* key, char* field) {
     connect();
 
@@ -494,21 +528,10 @@ long RedisClient::HDEL(char* key, char* field) {
 
     _client.write(cmdBuf,strlen(cmdBuf));
 
-    return resultInt();
+    long rc = readInt();
+    return rc;
 }
 
-long RedisClient:: LINDEX(char *key) {
-    connect();
-
-    startCmd(2);
-    addArg("HINDEX");
-    addArg(key);;
-
-    _client.write(cmdBuf,strlen(cmdBuf));
-
-    return resultInt();
-}
-    
 long RedisClient::APPEND(char* list, char* buf) {
     connect();
 
@@ -524,7 +547,7 @@ long RedisClient::APPEND(char* list, char* buf) {
 
 long RedisClient::LPOP(char* list, char* buf) {
     connect();
-    startCmd(3);
+    startCmd(2);
     addArg("LPOP");
     addArg(list);
 
@@ -541,7 +564,7 @@ long RedisClient::LPOP(char* list, char* buf) {
 long RedisClient::LSET(char* list, char* value, long index) {
     connect();
 
-    startCmd(3);
+    startCmd(4);
     addArg("LSET");
     addArg(list);
     addLongArg(index);
@@ -552,7 +575,6 @@ long RedisClient::LSET(char* list, char* value, long index) {
     return resultInt();
 }
 
-/////////////////////////////////////////////////////
 
 long RedisClient::PUBLISH(char* channel, char* buffer) {
     connect();
@@ -564,36 +586,6 @@ long RedisClient::PUBLISH(char* channel, char* buffer) {
     
     long rc = readInt();
     return rc;
-}
-
-long RedisClient::SUBSCRIBE(char* channel, char* buffer, long sz) {
-    connect();
-    startCmd(2);
-    addArg("SUBSCRIBE");
-    addArg(channel);
-
-    _client.write(cmdBuf,strlen(cmdBuf));
-
-    long rc = readInt();  
-    if (rc != 3) {
-      return 0;
-    }
-    while(!_client.available());
-    readEncodedLine(buffer,32);
-
-    while(!_client.available());
-    readEncodedLine(buffer,32);
-
-   int i = readInt();
-
-    Serial.println("SUBSCRIBE READ!");
-    Serial.println(i);
-    while(true) {
-      if (_client.available()) {
-        i = _client.read();
-        Serial.write(i);
-      }
-    }
 }
 
 // Returns the result type from the REDIS command.
@@ -698,14 +690,15 @@ uint16_t RedisClient::resultError(char *buffer) {
 }
 
 // Read a $n\r\nline-of-stuff\r\n into buffer.
-// Note: buffer_size has to be bigger than result as result there'll be always a \0 appendet
+// Note: buffer_size has to be bigger than result as result there'll be always a \0 appended
 
-uint16_t RedisClient::readEncodedLine(char *buffer, uint16_t buffer_size) {
+long RedisClient::readEncodedLine(char *buffer, long buffer_size) {
     uint16_t result_size = readInt();
+
     while(_client.available() < result_size+2)
         delay(1);
 
-    for (int i=0;i<result_size;i++) {
+    for (int i=0;i<result_size;i++ && i < buffer_size - 1) {
       buffer[i] = _client.read();
     }
     buffer[result_size] = '\0';

@@ -1,4 +1,4 @@
-# Ben Faul's REDIS Client Library for use with AdaFruit CC3000 WiFi
+This is a simple REDIS client library for use with the Adafruit CC3000 network card. 
 
 This library depends on the following hardware: Adafruit CC3000 Breakout 
   ----> https://www.adafruit.com/products/1469
@@ -12,15 +12,13 @@ You may need to create the libraries subfolder if its your first library. Restar
 
 -------------------------------------------------------------------------------------------
 
-This is a simple REDIS client library for use with the Adafruit CC3000 network card. It is loosely based on a Redis client 
-located here: http://hackersome.com/p/tht/RedisClient
+This is a small client library for use with the REDIS system. It is loosely based on a Redis client 
+located here: http://hackersome.com/p/tht/RedisClient, but 99% rewritten to handle abritrary sized 
+numbers, instead of 8 bit unsigned. Also, network access is greatly reduced. A REDIS GET takes 70ms with
+this library.
 
-However, the hackersome client has serious drawbacks (IMHO). First, it does multiple network read/writes for
-a single command. This results in a GET taking over 700ms to complete. This client buffers the command 
-construct in memory. A GET should take no more than 70ms.
-
-The other hackersome client issue is that it returns unsigned 8 bit values. This library uses 32 bit signed
-long integers instead. REDIS can still overflow this return value, but it's better than 8 bit returns.
+If you need a REDIS client for use with your Arduino project and you use the Adafruit CC3000 network card, this
+library should get you started.
 
 Please note, that internally REDIS stores numbers as strings - and their size is constrained only by the
 size of the memory on the server. If your Arduino project is using REDIS with other Arduinos, then you
@@ -57,5 +55,30 @@ long RedisClient::INCR(char* key) {
 Copy this method, and change the method to LLEN, change addArg("INCR") to addArg("LLEN"), add the
 prototype to the RedisClient.h file and voila! Now you can determine the number of items in a list.
 
-See the example program for how to use the library.
+See the example program "TestRedis" for how to use the library. RedisClient.h shows the REDIS commands available to you.
+
+But basically it looks like this:
+
+// .. adafruit CC3000 code...
+Adafruit_CC3000 cc3000 = Adafruit_CC3000(ADAFRUIT_CC3000_CS, ADAFRUIT_CC3000_IRQ, ADAFRUIT_CC3000_VBAT,
+                                         SPI_CLOCK_DIVIDER); // you can change this clock speed
+RedisClient* redis;
+
+setup() {
+   Serial.begin(19200);
+// ... Get the Adafruit WiFi card running.
+
+   ip = cc3000.IP2U32(192, 168, 1, 2);        // redis host we will use
+   redis = new RedisClient(ip,6379, &cc3000);
+   redis->connect();
+
+   redis->INCR("test");
+   redis->HSET("hash","apples","10");
+    ...
+}
+
+Loop() {
+
+}
+
 
