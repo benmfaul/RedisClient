@@ -13,7 +13,7 @@ You may need to create the libraries subfolder if its your first library. Restar
 -------------------------------------------------------------------------------------------
 
 This is a small client library for use with the REDIS system. It is loosely based on a Redis client 
-located here: http://hackersome.com/p/tht/RedisClient, but 99% rewritten to handle abritrary sized 
+located here: http://hackersome.com/p/tht/RedisClient, but 99% rewritten to handle arbitrary sized 
 numbers, instead of 8 bit unsigned. Also, network access is greatly reduced. A REDIS GET takes 70ms with
 this library.
 
